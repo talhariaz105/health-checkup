@@ -3,7 +3,7 @@ const {
   authRoute,
   userRoute,
   bookingRoute,
-
+testRoute
   
 } = require('../routes');
 
@@ -16,6 +16,7 @@ module.exports = (app) => {
   app.use('/api/auth', authRoute);
   app.use('/api/user', userRoute);
   app.use('/api/booking', bookingRoute);
+  app.use('/api/test', testRoute);
 
   otherRoutes(app);
 };

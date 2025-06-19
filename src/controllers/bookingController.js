@@ -1,8 +1,6 @@
 
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
-const { STRIPE_SECRET_ACCESS_KEY } = process.env;
-const stripe = require('stripe')(STRIPE_SECRET_ACCESS_KEY);
 const joiError = require('../utils/joiError');
 const { createPaymentIntents } = require('../utils/stripe-utils/connect-accounts.util');
 const { capturePaymentIntent } = require('../utils/stripe-utils/customers.utils');
