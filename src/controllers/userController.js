@@ -6,6 +6,8 @@ const joiError = require('../utils/joiError');
 const { userUpdateSchema } = require('../utils/joi/userValidation');
 const { roles } = require('../utils/types');
 const Email = require('../utils/email');
+const Booking = require('../models/Booking');
+const Test = require('../models/Test');
 
 const sendEmail = async (subject, email, text, data) => {
   await new Email(email, subject).sendTextEmail(subject, text, data);
@@ -82,7 +84,7 @@ const updateUserProfile = catchAsync(async (req, res, next) => {
   const { error } = userUpdateSchema.validate(req.body);
   if (error) {
     const errorFields = error.details.map(detail => detail.message).join(', ');
-    return next(new AppError("Invalid user data: ", 400, {  errorFields }));
+    return next(new AppError("Invalid user data: ", 400, { errorFields }));
   }
 
   if (!mongoose.Types.ObjectId.isValid(userId)) return next(new AppError('Invalid ID', 400));
@@ -99,7 +101,7 @@ const updateUser = catchAsync(async (req, res, next) => {
   const { error } = userUpdateSchema.validate(req.body);
   if (error) {
     const errorFields = joiError(error);
-    return next(new AppError("Invalid user data: ", 400, {  errorFields }));
+    return next(new AppError("Invalid user data: ", 400, { errorFields }));
   }
 
   if (!mongoose.Types.ObjectId.isValid(id)) return next(new AppError('Invalid ID', 400));
@@ -154,5 +156,52 @@ const getUserProfile = catchAsync(async (req, res, next) => {
 });
 
 
+// Dashboard statistics 
 
-module.exports = { getUser, getUsers, updateUserProfile, updateUser, deleteUser, updateStatus, getUserProfile };
+const getDashboardStats = catchAsync(async (req, res, next) => {
+  const totalUsers = await User.countDocuments({ role: 'client' });
+  const totalTests = await Test.countDocuments();
+  const totalConsulting = await Booking.aggregate([
+    {
+      $addFields: {
+        status: {
+          $cond: [
+            { $lt: ["$appointmentDateandTime", new Date()] },
+            "completed",
+            "pending"
+          ]
+        }
+      }
+    },
+    {
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        status: "$_id",
+        count: 1
+      }
+    }
+  ]);
+
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      totalUsers,
+      totalTests,
+      totalConsulting: totalConsulting.reduce((acc, curr) => {
+        acc[curr.status] = curr.count;
+        return acc;
+      }, { pending: 0, completed: 0 })
+    }
+  });
+});
+
+
+
+module.exports = { getUser, getUsers, updateUserProfile, updateUser, deleteUser, updateStatus, getUserProfile, getDashboardStats };
