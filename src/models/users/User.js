@@ -73,9 +73,7 @@ const userSchema = new Schema(
 
     status: {
       type: String,
-      trim: true,
-      enum: ['Active', 'Inactive', 'Suspend', 'Delete'],
-      default: 'Active'
+      trim: true,                                                                                                                                                      
     },
 
     lastLoginAt: Date,

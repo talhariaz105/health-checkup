@@ -17,15 +17,37 @@ const getUser = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return next(new AppError('Invalid ID', 400));
 
-  const user = await User.findById(id).select('-password');
-  if (!user) return next(new AppError('User not found', 404));
+  const userAgg = await User.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: 'tests',
+        localField: '_id',
+        foreignField: 'patient',
+        as: 'tests'
+      }
+    },
+    {
+      $lookup: {
+        from: 'bookings',
+        localField: '_id',
+        foreignField: 'patient',
+        as: 'appointments'
+      }
+    },
+    {
+      $project: { password: 0 }
+    }
+  ]);
 
-  return res.status(200).json({ status: 'success', data: user });
+  if (!userAgg || userAgg.length === 0) return next(new AppError('User not found', 404));
+
+  return res.status(200).json({ status: 'success', data: userAgg[0] });
 });
 
 // List users with filters (role, search, pagination)
 const getUsers = catchAsync(async (req, res, next) => {
-  const { role, search = '', page = 1, limit = 10, status } = req.query;
+  const { status, search = '', page = 1, limit = 10, role = "client" } = req.query;
   const skip = (page - 1) * limit;
   const match = {};
 
@@ -55,10 +77,30 @@ const getUsers = catchAsync(async (req, res, next) => {
 });
 
 // Update user (all roles)
+const updateUserProfile = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  const { error } = userUpdateSchema.validate(req.body);
+  if (error) {
+    const errorFields = error.details.map(detail => detail.message).join(', ');
+    return next(new AppError("Invalid user data: ", 400, {  errorFields }));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) return next(new AppError('Invalid ID', 400));
+
+  const user = await User.findByIdAndUpdate(userId, req.body, { new: true });
+  console.log("Updated user:", req.body);
+  if (!user) return next(new AppError('User not found', 404));
+
+  res.status(200).json({ status: 'success', data: user });
+});
+
 const updateUser = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { error } = userUpdateSchema.validate(req.body);
-  if (error) return next(new AppError(joiError(error), 400));
+  if (error) {
+    const errorFields = joiError(error);
+    return next(new AppError("Invalid user data: ", 400, {  errorFields }));
+  }
 
   if (!mongoose.Types.ObjectId.isValid(id)) return next(new AppError('Invalid ID', 400));
 
@@ -67,6 +109,7 @@ const updateUser = catchAsync(async (req, res, next) => {
 
   res.status(200).json({ status: 'success', data: user });
 });
+
 
 // Delete (soft)
 const deleteUser = catchAsync(async (req, res, next) => {
@@ -100,5 +143,16 @@ const updateStatus = catchAsync(async (req, res, next) => {
 });
 
 
+const getUserProfile = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  if (!mongoose.Types.ObjectId.isValid(userId)) return next(new AppError('Invalid User ID', 400));
 
-module.exports = { getUser, getUsers, updateUser, deleteUser, updateStatus };
+  const user = await User.findById(userId).select('-password');
+  if (!user) return next(new AppError('User not found', 404));
+
+  res.status(200).json({ status: 'success', data: user });
+});
+
+
+
+module.exports = { getUser, getUsers, updateUserProfile, updateUser, deleteUser, updateStatus, getUserProfile };
