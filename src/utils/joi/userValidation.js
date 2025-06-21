@@ -1,12 +1,18 @@
 const Joi = require('joi');
 const { roles } = require('../types');
+const JoiPhoneNumber = require('joi-phone-number');
+const JoiContact = Joi.extend(JoiPhoneNumber);
 const base = {
   name: Joi.string().trim().max(50),
   email: Joi.string().email().trim(),
-  contact: Joi.string()
-    .pattern(/^\+?[1-9]\d{1,14}$/, { message: 'Contact number must be a valid phone number format (e.g., +1234567890)' })
-    .max(15)
-    .messages({ 'string.max': 'Contact number must not exceed 15 characters' }),
+  contact: JoiContact.string()
+    .phoneNumber({
+      format: 'e164',      // enforces +<countrycode><number> format
+      strict: true         // ensures number is valid for its region
+    })
+    .messages({
+      'string.phoneNumber': 'Please enter a valid international phone number.'
+    }),
   city: Joi.string().trim().max(100),
   profilePicture: Joi.string().uri().trim(),
   address: Joi.string().trim().max(200),
@@ -18,7 +24,7 @@ const base = {
 
 };
 exports.userCreateSchema = Joi.object(base).fork(
-  ["name", 'email', 'contact', 'city',  'address', 'postalCode', 'password'], s => s.required()
+  ["name", 'email', 'contact', 'city', 'address', 'postalCode', 'password'], s => s.required()
 );
 
 exports.userUpdateSchema = Joi.object(base);
