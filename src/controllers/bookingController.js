@@ -43,7 +43,7 @@ exports.createBookingConsulting = catchAsync(async (req, res, next) => {
         }
         const booking = await createBooking({
             patient: req.user._id,
-            appointmentDateandTime: appointmentDateandTime,
+            appointmentDateandTime: new Date(appointmentDateandTime),
             reason: reason,
             paymentStatus: 'paid',
             bookingfee: bookingfee
