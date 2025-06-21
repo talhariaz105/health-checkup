@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.route('/dashboard-stats')
   .get(restrictTo(roles.ADMIN), getDashboardStats);
 router.route('/me')
-  .get(restrictTo(roles.ADMIN), getUserProfile)
+  .get(getUserProfile)
   .patch(restrictTo(roles.ADMIN), updateUserProfile);
 router.route('/:id')
   .get(restrictTo(roles.ADMIN), getUser)
