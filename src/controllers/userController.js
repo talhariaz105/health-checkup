@@ -161,6 +161,8 @@ const getUserProfile = catchAsync(async (req, res, next) => {
 const getDashboardStats = catchAsync(async (req, res, next) => {
   const totalUsers = await User.countDocuments({ role: 'client' });
   const totalTests = await Test.countDocuments();
+
+  // Consulting stats
   const totalConsulting = await Booking.aggregate([
     {
       $addFields: {
@@ -187,17 +189,66 @@ const getDashboardStats = catchAsync(async (req, res, next) => {
       }
     }
   ]);
+  console.log("Consulting stats aggregation:", totalConsulting);
 
+  // Weekly meetings (appointments) tracker for current week
+  const startOfWeek = new Date();
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(endOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const weeklyMeetings = await Booking.aggregate([
+    {
+      $match: {
+        appointmentDateandTime: {
+          $gte: startOfWeek,
+          $lte: endOfWeek
+        }
+      }
+    },
+    {
+      $group: {
+        _id: { $dayOfWeek: "$appointmentDateandTime" }, // 1=Sunday, 7=Saturday
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Map days to Mon-Sat (for chart)
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weeklyData = [0, 0, 0, 0, 0, 0, 0];
+  weeklyMeetings.forEach(item => {
+    weeklyData[item._id - 1] = item.count;
+  });
+
+  // Meeting completion tracker (attended vs pending this week)
+  const totalConsultingdata = totalConsulting.reduce((acc, curr) => {
+        acc[curr.status] = curr.count;
+        return acc;
+      }, { pending: 0, completed: 0 })
+
+  const totalMeetings = totalConsultingdata.completed + totalConsultingdata.pending;
+  console.log("Total meetings:", totalMeetings);
+  const completionPercent = totalMeetings ? Math.round((totalConsultingdata.completed * 100 / totalMeetings)) : 0;
 
   res.status(200).json({
     status: 'success',
     data: {
       totalUsers,
       totalTests,
-      totalConsulting: totalConsulting.reduce((acc, curr) => {
-        acc[curr.status] = curr.count;
-        return acc;
-      }, { pending: 0, completed: 0 })
+      totalConsulting: totalConsultingdata,
+      weeklyMeetings: {
+        days: days.slice(1).concat(days[0]), // ['Mon', ..., 'Sat', 'Sun']
+        counts: weeklyData.slice(1).concat(weeklyData[0]) // align to Mon-Sat-Sun
+      },
+      meetingCompletion: {
+        attended: totalConsultingdata.completed,
+        pending: totalConsultingdata.pending,
+        percent: completionPercent
+      }
     }
   });
 });
