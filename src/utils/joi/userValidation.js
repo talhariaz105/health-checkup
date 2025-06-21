@@ -3,10 +3,10 @@ const { roles } = require('../types');
 const base = {
   name: Joi.string().trim().max(50),
   email: Joi.string().email().trim(),
-  contact: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).trim().max(15).message({
-    'string.pattern.base': 'Contact number must be a valid phone number format (e.g., +1234567890)',
-    'string.max': 'Contact number must not exceed 15 characters'
-  }),
+  contact: Joi.string()
+    .pattern(/^\+?[1-9]\d{1,14}$/, { message: 'Contact number must be a valid phone number format (e.g., +1234567890)' })
+    .max(15)
+    .messages({ 'string.max': 'Contact number must not exceed 15 characters' }),
   city: Joi.string().trim().max(100),
   profilePicture: Joi.string().uri().trim(),
   address: Joi.string().trim().max(200),
