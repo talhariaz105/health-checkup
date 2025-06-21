@@ -11,7 +11,7 @@ const base = {
       strict: true         // ensures number is valid for its region
     })
     .messages({
-      'string.phoneNumber': 'Please enter a valid international phone number.'
+      'string.contact': 'Please enter a valid international phone number.'
     }),
   city: Joi.string().trim().max(100),
   profilePicture: Joi.string().uri().trim(),
