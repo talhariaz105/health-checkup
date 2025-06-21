@@ -149,10 +149,32 @@ const getUserProfile = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   if (!mongoose.Types.ObjectId.isValid(userId)) return next(new AppError('Invalid User ID', 400));
 
-  const user = await User.findById(userId).select('-password');
-  if (!user) return next(new AppError('User not found', 404));
+  const userAgg = await User.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(userId) } },
+    {
+      $lookup: {
+        from: 'tests',
+        localField: '_id',
+        foreignField: 'patient',
+        as: 'tests'
+      }
+    },
+    {
+      $lookup: {
+        from: 'bookings',
+        localField: '_id',
+        foreignField: 'patient',
+        as: 'appointments'
+      }
+    },
+    {
+      $project: { password: 0 }
+    }
+  ]);
 
-  res.status(200).json({ status: 'success', data: user });
+  if (!userAgg || userAgg.length === 0) return next(new AppError('User not found', 404));
+
+  return res.status(200).json({ status: 'success', data: userAgg[0] });
 });
 
 
@@ -226,9 +248,9 @@ const getDashboardStats = catchAsync(async (req, res, next) => {
 
   // Meeting completion tracker (attended vs pending this week)
   const totalConsultingdata = totalConsulting.reduce((acc, curr) => {
-        acc[curr.status] = curr.count;
-        return acc;
-      }, { pending: 0, completed: 0 })
+    acc[curr.status] = curr.count;
+    return acc;
+  }, { pending: 0, completed: 0 })
 
   const totalMeetings = totalConsultingdata.completed + totalConsultingdata.pending;
   console.log("Total meetings:", totalMeetings);
