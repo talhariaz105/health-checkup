@@ -118,10 +118,10 @@ const deleteUser = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return next(new AppError('Invalid ID', 400));
 
-  const user = await User.findByIdAndUpdate(id, { status: 'Delete' }, { new: true });
+  const user = await User.findByIdAndDelete(id);
   if (!user) return next(new AppError('User not found', 404));
 
-  res.status(204).json({ status: 'success', data: null });
+  res.status(204).json({ status: 'success', message: 'User deleted successfully', data: null });
 });
 
 // Update status (active/inactive/suspend)
